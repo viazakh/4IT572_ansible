@@ -15,17 +15,17 @@
         group: eshop
         wait: true
         aws_access_key: "{{ access_key }}"
-        aws_secret_key: "{{ security_key }}"
-        security_token: "{{ session_key }}"
+        aws_secret_key: "{{ secret_key }}"
+        security_token: "{{ session_token }}"
       register: ec2
 
-    - name: Add new instance to host group
+    - name: Add instance host to group
       add_host:
         hostname: "{{ item.public_ip }}"
         groupname: launched
       loop: "{{ ec2.instances }}"
 
-    - name: Wait for SSH to come up
+    - name: Wait for SSH connection
       delegate_to: "{{ item.public_dns_name }}"
       wait_for_connection:
         delay: 30
@@ -37,13 +37,13 @@
   connection: ssh
 
   tasks:
-    - name: Add Centos Extras
+    - name: Add extras
       shell: yum-config-manager --enable extras
       become: yes
     - name: Enable docker package
       shell: amazon-linux-extras enable docker
       become: yes
-    - name: Install Docker and Git
+    - name: Install Docker
       yum:
         name:
           - docker
@@ -56,20 +56,21 @@
         state: started
         enabled: yes
       become: yes
-    - name: Set rights to Docker
+    - name: Set rights to docker
       shell: usermod -a -G docker ec2-user
       become: yes
-    - name: Checkout Git repo
+    - name: Get project files from git
       git:
-        repo: "https://github.com/viazakh/DevOps-docker.git"
+        repo: 'https://github.com/viazakh/DevOps-docker.git'
         dest: ./app
-    - name: Build eshop docker
+    - name: Build docker with eshop
       shell: cd app && docker build -t eshop:latest .
       become: yes
-    - name: Run eshop
+    - name: Run Docker with eshop
       shell: docker run -p 80:3000 eshop
       async: 45
       poll: 0
       become: yes
     - wait_for:
-        port: 80
+        port:
+          80
